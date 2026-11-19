@@ -1,5 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import authRoutes from './routes/authRoutes';
 
 const app: Application = express();
 
@@ -24,6 +25,17 @@ app.use(
   })
 );
 
+// Raw body for Stripe webhook bypasses express.json()
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.originalUrl === '/api/webhooks/stripe') {
+    next();
+  } else {
+    express.json({ limit: '10mb' })(req, res, next);
+  }
+});
+
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
@@ -32,6 +44,9 @@ app.get('/api/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Mount Routes
+app.use('/api/auth', authRoutes);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({
