@@ -1,6 +1,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import dns from 'node:dns';
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {
+  // Ignore in environments where setting servers is restricted
+}
+
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from '../models/User';
