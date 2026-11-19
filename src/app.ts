@@ -3,6 +3,10 @@ import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import serviceRoutes from './routes/serviceRoutes';
+import appointmentRoutes from './routes/appointmentRoutes';
+import userRoutes from './routes/userRoutes';
+import paymentRoutes from './routes/paymentRoutes';
+import webhookRoutes from './routes/webhookRoutes';
 
 const app: Application = express();
 
@@ -27,15 +31,15 @@ app.use(
   })
 );
 
-// Raw body for Stripe webhook bypasses express.json()
-app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.originalUrl === '/api/webhooks/stripe') {
-    next();
-  } else {
-    express.json({ limit: '10mb' })(req, res, next);
-  }
-});
+// Mount raw body listener for Stripe Webhook before express.json() parser
+app.use(
+  '/api/webhooks/stripe',
+  express.raw({ type: 'application/json' })
+);
+app.use('/api/webhooks', webhookRoutes);
 
+// JSON body parser for all other REST endpoints
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -47,10 +51,13 @@ app.get('/api/health', (_req: Request, res: Response) => {
   });
 });
 
-// Mount Routes
+// Application Domain Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({
