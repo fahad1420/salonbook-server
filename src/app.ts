@@ -1,6 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import authRoutes from './routes/authRoutes';
+import uploadRoutes from './routes/uploadRoutes';
 
 const app: Application = express();
 
@@ -47,6 +48,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/upload', uploadRoutes);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({
