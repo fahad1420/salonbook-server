@@ -2,6 +2,18 @@
 
 Production-ready backend API service for **SalonBook**, a luxury salon and spa appointment booking platform.
 
+## Live Production Links & Repositories
+- **Production API URL:** [https://salonbook-api.vercel.app](https://salonbook-api.vercel.app)
+- **Live Client Web App:** [https://salonbook-booking.vercel.app](https://salonbook-booking.vercel.app)
+- **Backend GitHub Repository:** [https://github.com/fahad1420/salonbook-server](https://github.com/fahad1420/salonbook-server)
+- **Frontend GitHub Repository:** [https://github.com/fahad1420/salonbook-client](https://github.com/fahad1420/salonbook-client)
+
+### Demo Credentials
+- **Salon Director (Admin):** `admin@salonbook.com` / `Password123!`
+- **Client (Customer):** `vivienne@example.com` / `Password123!`
+
+---
+
 ## Tech Stack
 - **Runtime:** Node.js (v20+) with TypeScript (Strict Mode)
 - **Framework:** Express.js
@@ -20,9 +32,9 @@ Production-ready backend API service for **SalonBook**, a luxury salon and spa a
 
 ## Environment Variables (`.env`)
 ```bash
-NODE_ENV=development
+NODE_ENV=production
 PORT=5000
-CLIENT_URL=http://localhost:3000
+CLIENT_URL=https://salonbook-booking.vercel.app
 
 # MongoDB Connection String
 MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/salonbook?retryWrites=true&w=majority
@@ -30,6 +42,10 @@ MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/salonbook?r
 # Authentication Secrets
 JWT_SECRET=your_jwt_secret_key_minimum_32_characters_long
 BETTER_AUTH_SECRET=your_better_auth_secret_key
+
+# Google OAuth Credentials
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # Stripe Payment Keys
 STRIPE_SECRET_KEY=sk_test_...
