@@ -2,7 +2,7 @@
   "name": "salonbook-server",
   "version": "1.0.0",
   "description": "Backend API for SalonBook — Luxury Salon & Spa Appointment Booking Platform",
-  "main": "dist/index.js",
+  "main": "api/index.mjs",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsup",

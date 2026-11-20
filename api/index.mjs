@@ -50668,7 +50668,16 @@ var auth = betterAuth({
     updateAge: 60 * 60 * 24
   },
   account: {
-    modelName: "accounts"
+    modelName: "accounts",
+    skipStateCookieCheck: true
+  },
+  advanced: {
+    useSecureCookies: true,
+    defaultCookieAttributes: {
+      sameSite: "none",
+      secure: true,
+      partitioned: true
+    }
   },
   verification: {
     modelName: "verifications"
@@ -52108,7 +52117,7 @@ async function createCheckoutSession(req, res) {
       res.status(404).json({ success: false, message: "Associated service not found" });
       return;
     }
-    const clientUrl2 = process.env.CLIENT_URL || "http://localhost:3000";
+    const clientUrl3 = process.env.CLIENT_URL || "http://localhost:3000";
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: req.user.email,
@@ -52131,8 +52140,8 @@ async function createCheckoutSession(req, res) {
         customerId: req.user._id.toString(),
         serviceId: service._id.toString()
       },
-      success_url: `${clientUrl2}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${clientUrl2}/payment/cancel?appointment_id=${appointment._id.toString()}`
+      success_url: `${clientUrl3}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${clientUrl3}/payment/cancel?appointment_id=${appointment._id.toString()}`
     });
     res.status(200).json({
       success: true,
@@ -52310,6 +52319,21 @@ app.all("/api/auth/*", async (req, res, next) => {
 });
 app.use(express2.json({ limit: "10mb" }));
 app.use(express2.urlencoded({ extended: true, limit: "10mb" }));
+var clientUrl2 = process.env.CLIENT_URL || (process.env.NODE_ENV === "production" ? "https://salonbook-booking.vercel.app" : "http://localhost:3000");
+app.get("/", (req, res) => {
+  const error3 = req.query.error;
+  if (error3) {
+    return res.redirect(`${clientUrl2}/sign-in?error=${encodeURIComponent(String(error3))}`);
+  }
+  return res.redirect(clientUrl2);
+});
+app.get("/error", (req, res) => {
+  const error3 = req.query.error;
+  if (error3) {
+    return res.redirect(`${clientUrl2}/sign-in?error=${encodeURIComponent(String(error3))}`);
+  }
+  return res.redirect(clientUrl2);
+});
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
     status: "ok",

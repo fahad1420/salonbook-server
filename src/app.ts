@@ -63,6 +63,28 @@ app.all('/api/auth/*', async (req: Request, res: Response, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+const clientUrl =
+  process.env.CLIENT_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://salonbook-booking.vercel.app'
+    : 'http://localhost:3000');
+
+app.get('/', (req: Request, res: Response) => {
+  const error = req.query.error;
+  if (error) {
+    return res.redirect(`${clientUrl}/sign-in?error=${encodeURIComponent(String(error))}`);
+  }
+  return res.redirect(clientUrl);
+});
+
+app.get('/error', (req: Request, res: Response) => {
+  const error = req.query.error;
+  if (error) {
+    return res.redirect(`${clientUrl}/sign-in?error=${encodeURIComponent(String(error))}`);
+  }
+  return res.redirect(clientUrl);
+});
+
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
