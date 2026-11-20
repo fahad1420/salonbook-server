@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { getAuth } from '../config/auth';
+import { fromNodeHeaders } from 'better-auth/node';
+import { auth } from '../config/auth';
 
 export interface AuthenticatedRequest extends Request {
   user?: any;
@@ -12,7 +13,6 @@ export async function authenticate(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { auth, fromNodeHeaders } = await getAuth();
     const headers = fromNodeHeaders(req.headers);
     const session = await auth.api.getSession({
       headers,

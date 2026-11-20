@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { getAuth } from '../config/auth';
+import { fromNodeHeaders } from 'better-auth/node';
+import { auth } from '../config/auth';
 import { User } from '../models/User';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { connectDB } from '../config/db';
@@ -29,7 +30,6 @@ export async function signUp(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { auth, fromNodeHeaders } = await getAuth();
     const signUpRes = await auth.api.signUpEmail({
       body: {
         name: name.trim(),
@@ -79,7 +79,6 @@ export async function signIn(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { auth, fromNodeHeaders } = await getAuth();
     const signInRes = await auth.api.signInEmail({
       body: {
         email: email.toLowerCase().trim(),
@@ -134,7 +133,6 @@ export async function googleTokenAuth(req: Request, res: Response): Promise<void
       return;
     }
 
-    const { auth, fromNodeHeaders } = await getAuth();
     const signInRes = await auth.api.signInSocial({
       body: {
         provider: 'google',
