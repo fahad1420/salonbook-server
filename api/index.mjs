@@ -51079,23 +51079,17 @@ var authRoutes_default = router2;
 import { Router as Router2 } from "express";
 
 // src/services/imgbb.ts
-async function uploadToImgBB(fileBuffer, fileName) {
+async function uploadToImgBB(fileBuffer, fileName = "salon-service.jpg") {
   const apiKey = process.env.IMGBB_API_KEY?.replace(/['"\s]/g, "").trim();
   if (!apiKey) {
     throw new Error("IMGBB_API_KEY environment variable is not configured");
   }
-  const base64Data = fileBuffer.toString("base64");
-  const formData = new URLSearchParams();
-  formData.append("image", base64Data);
-  if (fileName) {
-    formData.append("name", fileName);
-  }
+  const formData = new FormData();
+  const blob = new Blob([fileBuffer]);
+  formData.append("image", blob, fileName);
   const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: formData.toString()
+    body: formData
   });
   const data = await response.json();
   if (!response.ok || !data.success) {
