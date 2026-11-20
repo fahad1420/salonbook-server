@@ -1,7 +1,6 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
-import { getBetterAuthNode } from './utils/esm';
-import { auth } from './config/auth';
+import { getAuth } from './config/auth';
 import authRoutes from './routes/authRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import serviceRoutes from './routes/serviceRoutes';
@@ -47,7 +46,7 @@ app.use('/api/auth', authRoutes);
 // 3. Official Better Auth catch-all for /api/auth/sign-in/email, /api/auth/callback/google, etc.
 app.all('/api/auth/*', async (req: Request, res: Response, next) => {
   try {
-    const { toNodeHandler } = await getBetterAuthNode();
+    const { auth, toNodeHandler } = await getAuth();
     return toNodeHandler(auth)(req, res);
   } catch (err) {
     next(err);

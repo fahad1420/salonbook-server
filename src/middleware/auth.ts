@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { fromNodeHeaders } from '../utils/esm';
-import { auth } from '../config/auth';
+import { getAuth } from '../config/auth';
 
 export interface AuthenticatedRequest extends Request {
   user?: any;
@@ -13,6 +12,7 @@ export async function authenticate(
   next: NextFunction
 ): Promise<void> {
   try {
+    const { auth, fromNodeHeaders } = await getAuth();
     const headers = fromNodeHeaders(req.headers);
     const session = await auth.api.getSession({
       headers,
