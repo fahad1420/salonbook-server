@@ -50636,6 +50636,8 @@ mongoClient.connect().catch((err) => {
 var db = mongoClient.db();
 var clientUrl = process.env.CLIENT_URL || "http://localhost:3000";
 var serverUrl = process.env.BETTER_AUTH_URL || (process.env.NODE_ENV === "production" ? "https://salonbook-api.vercel.app" : "http://localhost:5000");
+var googleClientId = (process.env.GOOGLE_CLIENT_ID || "").replace(/^\uFEFF/, "").replace(/['"\s]/g, "").trim();
+var googleClientSecret = (process.env.GOOGLE_CLIENT_SECRET || "").replace(/^\uFEFF/, "").replace(/['"\s]/g, "").trim();
 var auth = betterAuth({
   database: mongodbAdapter(db, {
     client: mongoClient
@@ -50680,8 +50682,8 @@ var auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || ""
+      clientId: googleClientId,
+      clientSecret: googleClientSecret
     }
   },
   databaseHooks: {

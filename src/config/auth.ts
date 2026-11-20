@@ -33,6 +33,16 @@ const serverUrl =
     ? 'https://salonbook-api.vercel.app'
     : 'http://localhost:5000');
 
+const googleClientId = (process.env.GOOGLE_CLIENT_ID || '')
+  .replace(/^\uFEFF/, '')
+  .replace(/['"\s]/g, '')
+  .trim();
+
+const googleClientSecret = (process.env.GOOGLE_CLIENT_SECRET || '')
+  .replace(/^\uFEFF/, '')
+  .replace(/['"\s]/g, '')
+  .trim();
+
 export const auth = betterAuth({
   database: mongodbAdapter(db, {
     client: mongoClient,
@@ -78,8 +88,8 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
     },
   },
   databaseHooks: {
