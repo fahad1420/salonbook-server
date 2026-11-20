@@ -77,6 +77,7 @@ IMGBB_API_KEY=your_imgbb_api_key
 - `DELETE /api/services/:id` — [Admin] Delete service
 
 ### Appointments & Bookings
+- `GET /api/appointments/booked-slots` — Public real-time slot availability check (`?serviceId=&date=`)
 - `POST /api/appointments` — [Customer] Book appointment with slot conflict validation
 - `GET /api/appointments/my` — [Customer] List customer's own reservations
 - `GET /api/appointments/my/stats` — [Customer] Personal booking statistics
