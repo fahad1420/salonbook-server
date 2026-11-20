@@ -80,15 +80,32 @@ export async function createBooking(
       return;
     }
 
-    // Critical slot conflict check: Reject if active ('pending' or 'confirmed') appointment exists
-    const existingConflict = await Appointment.findOne({
+    // Check 1: Prevent duplicate active appointment for the same customer, date, and time slot
+    const customerConflict = await Appointment.findOne({
+      customerId: req.user._id,
+      appointmentDate,
+      timeSlot,
+      status: { $in: ['pending', 'confirmed'] },
+    });
+
+    if (customerConflict) {
+      res.status(409).json({
+        success: false,
+        message:
+          'You already have an active appointment scheduled for this date and time slot. Please choose another time slot.',
+      });
+      return;
+    }
+
+    // Check 2: Prevent slot conflict for the same service, date, and time slot
+    const serviceConflict = await Appointment.findOne({
       serviceId: service._id,
       appointmentDate,
       timeSlot,
       status: { $in: ['pending', 'confirmed'] },
     });
 
-    if (existingConflict) {
+    if (serviceConflict) {
       res.status(409).json({
         success: false,
         message:
@@ -362,7 +379,7 @@ export async function getAdminDashboardStats(
 export async function getBookedSlots(req: Request, res: Response): Promise<void> {
   try {
     await connectDB();
-    const { serviceId, date } = req.query;
+    const { serviceId, date, customerId } = req.query;
 
     if (!serviceId || !date) {
       res.status(400).json({
@@ -372,13 +389,27 @@ export async function getBookedSlots(req: Request, res: Response): Promise<void>
       return;
     }
 
+    const queryConditions: Array<Record<string, unknown>> = [
+      {
+        serviceId,
+        appointmentDate: String(date),
+        status: { $in: ['pending', 'confirmed'] },
+      },
+    ];
+
+    if (customerId && typeof customerId === 'string' && customerId.trim().length > 0) {
+      queryConditions.push({
+        customerId: customerId.trim(),
+        appointmentDate: String(date),
+        status: { $in: ['pending', 'confirmed'] },
+      });
+    }
+
     const activeBookings = await Appointment.find({
-      serviceId,
-      appointmentDate: String(date),
-      status: { $in: ['pending', 'confirmed'] },
+      $or: queryConditions,
     }).select('timeSlot');
 
-    const bookedSlots = activeBookings.map((b) => b.timeSlot);
+    const bookedSlots = Array.from(new Set(activeBookings.map((b) => b.timeSlot)));
 
     res.status(200).json({
       success: true,
