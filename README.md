@@ -8,40 +8,38 @@ Production-ready backend API service for **SalonBook**, a luxury salon and spa a
 - **Backend GitHub Repository:** [https://github.com/fahad1420/salonbook-server](https://github.com/fahad1420/salonbook-server)
 - **Frontend GitHub Repository:** [https://github.com/fahad1420/salonbook-client](https://github.com/fahad1420/salonbook-client)
 
-### Demo Credentials
-- **Salon Director (Admin):** `admin@salonbook.com` / `Password123!`
-- **Client (Customer):** `vivienne@example.com` / `Password123!`
-
 ---
 
 ## Tech Stack
 - **Runtime:** Node.js (v20+) with TypeScript (Strict Mode)
 - **Framework:** Express.js
-- **Database:** MongoDB via Mongoose ORM (Serverless Connection Pooling)
-- **Authentication:** JWT Bearer with Role-Based Access Control (RBAC) & Suspension Enforcement
+- **Database:** MongoDB via MongoDB Native Driver & Mongoose ODM (Serverless Connection Pooling)
+- **Authentication:** Better Auth (MongoDB Adapter) with Session Management & Google OAuth 2.0 Integration
 - **Payment Processing:** Stripe Checkout & Cryptographically Verified Webhooks
-- **Asset Storage:** ImgBB Multipart API
-- **Deployment:** Vercel Serverless Function (`api/index.ts` + `vercel.json`)
+- **Asset Storage:** ImgBB Multipart Server API
+- **Deployment:** Vercel Serverless Function (`api/index.js` + `vercel.json`)
+
+---
 
 ## Architecture & Security Highlights
-- **Zero AI Footprints:** Clean, idiomatic, human-style TypeScript without redundant line-by-line comments.
-- **Strict Role-Based Security:** Customer vs. Admin guards with immediate suspension enforcement (`isBlocked === true` yields 403 Forbidden).
-- **Slot Conflict Validation:** Prevents double-booking if an active (`pending` or `confirmed`) appointment exists for the same service and time slot.
-- **Idempotent Webhook Processing:** Cryptographically signed Stripe webhooks (`stripe.webhooks.constructEvent`) record transactions and transition appointment payment status atomically.
-- **Serverless-Optimized Pooling:** Reuses cached Mongoose connections across serverless lambda invocations to avoid connection saturation.
+- **Better Auth Integration:** Official Better Auth with MongoDB adapter managing users, accounts, sessions, and verification tokens.
+- **Strict Role-Based Access Control:** Customer vs. Admin guards with immediate suspension enforcement (`isBlocked === true` yields 403 Forbidden). Public registration is strictly restricted to `customer`.
+- **Duplicate Booking Prevention:** Validates slot availability to prevent overlapping active (`pending` or `confirmed`) appointments for the same service, date, and time slot.
+- **Idempotent Webhook Processing:** Cryptographically signed Stripe webhooks (`stripe.webhooks.constructEvent` on `/api/webhooks/stripe`) atomically record transactions and update appointment payment status.
+- **Secure Image Uploads:** Multi-part file uploads are processed entirely server-side through `/api/upload` to ImgBB without exposing API keys to the client.
+
+---
 
 ## Environment Variables (`.env`)
 ```bash
 NODE_ENV=production
 PORT=5000
 CLIENT_URL=https://salonbook-booking.vercel.app
+BETTER_AUTH_URL=https://salonbook-api.vercel.app
+BETTER_AUTH_SECRET=your_better_auth_secret_key
 
 # MongoDB Connection String
 MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/salonbook?retryWrites=true&w=majority
-
-# Authentication Secrets
-JWT_SECRET=your_jwt_secret_key_minimum_32_characters_long
-BETTER_AUTH_SECRET=your_better_auth_secret_key
 
 # Google OAuth Credentials
 GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
@@ -55,20 +53,25 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 IMGBB_API_KEY=your_imgbb_api_key
 ```
 
+---
+
 ## API Endpoint Reference
 
-### Authentication & Profiles
-- `POST /api/auth/sign-up` — Public registration (Strictly assigns `customer` role)
-- `POST /api/auth/sign-in` — Authenticates credentials, checks suspension status, returns JWT
-- `POST /api/auth/google` — Google OAuth user sync
+### Better Auth & Identity
+- `POST /api/auth/sign-up/email` — Email/password registration (Strictly assigns `customer` role)
+- `POST /api/auth/sign-in/email` — Email/password authentication & session creation
+- `POST /api/auth/sign-in/social` — Google OAuth session initiation
+- `GET /api/auth/callback/google` — Google OAuth callback verification
+- `GET /api/auth/get-session` — Session verification
+- `POST /api/auth/sign-out` — Session revocation
 - `GET /api/auth/me` — Retrieves current authenticated profile
 - `PUT /api/auth/profile` — Updates personal profile (name, image, phone)
 
 ### Media Uploads
-- `POST /api/upload` — Multipart image upload directly streamed to ImgBB
+- `POST /api/upload` — Authenticated multipart image upload streamed to ImgBB
 
 ### Salon Services
-- `GET /api/services` — Public catalog of active services (`?search=`, `?category=`, `?sort=price_asc|price_desc`, `?limit=`)
+- `GET /api/services` — Public catalog of active services (`?search=`, `?category=`, `?sort=price_asc|price_desc`)
 - `GET /api/services/detail/:id` — Public single service details
 - `GET /api/services/admin/all` — [Admin] All services (active & inactive)
 - `POST /api/services` — [Admin] Create service with ImgBB image URL
@@ -77,26 +80,20 @@ IMGBB_API_KEY=your_imgbb_api_key
 - `DELETE /api/services/:id` — [Admin] Delete service
 
 ### Appointments & Bookings
-- `GET /api/appointments/booked-slots` — Public real-time slot availability check (`?serviceId=&date=`)
+- `GET /api/appointments/booked-slots` — Real-time slot availability check (`?serviceId=&date=`)
 - `POST /api/appointments` — [Customer] Book appointment with slot conflict validation
 - `GET /api/appointments/my` — [Customer] List customer's own reservations
 - `GET /api/appointments/my/stats` — [Customer] Personal booking statistics
 - `PATCH /api/appointments/:id/cancel` — [Customer] Cancel own pending reservation
 - `GET /api/appointments/admin/all` — [Admin] List all salon appointments
-- `GET /api/appointments/admin/stats` — [Admin] Operational metrics & revenue summary
+- `GET /api/appointments/admin/stats` — [Admin] Real-time operational metrics & revenue summary
 - `PATCH /api/appointments/:id/status` — [Admin] Confirm or cancel appointment
 
 ### User Administration
-- `GET /api/users` — [Admin] List all registered customers
+- `GET /api/users` — [Admin] List registered customers
 - `PATCH /api/users/:id/block` — [Admin] Toggle customer account suspension
 
 ### Payments & Webhooks
 - `POST /api/payments/create-checkout-session` — [Customer] Create Stripe checkout session for confirmed unpaid booking
-- `POST /api/webhooks/stripe` — Cryptographically verified webhook listener
-- `GET /api/payments/transactions` — [Admin] Read-only financial ledger with masked session IDs
-
-## Database Seed
-To populate the database with 1 Admin (`admin@salonbook.com` / `Password123!`), 1 Customer (`vivienne@example.com` / `Password123!`), and 8 realistic luxury salon services:
-```bash
-npm run seed
-```
+- `POST /api/webhooks/stripe` — Cryptographically verified Stripe webhook listener
+- `GET /api/transactions` — [Admin] Read-only financial ledger
