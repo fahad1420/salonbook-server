@@ -13,7 +13,9 @@ const router = Router();
 const jsonParser = express.json({ limit: '5mb' });
 
 router.post('/sign-up', jsonParser, signUp);
+router.post('/register', jsonParser, signUp);
 router.post('/sign-in', jsonParser, signIn);
+router.post('/login', jsonParser, signIn);
 router.post('/google-token', jsonParser, googleTokenAuth);
 router.get('/me', authenticate, getMe);
 router.put('/profile', jsonParser, authenticate, updateProfile);

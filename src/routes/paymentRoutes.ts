@@ -3,6 +3,7 @@ import {
   createCheckoutSession,
   getAllTransactionsAdmin,
 } from '../controllers/paymentController';
+import { handleStripeWebhook } from '../controllers/webhookController';
 import { authenticate } from '../middleware/auth';
 import { requireAdmin, requireCustomer } from '../middleware/role';
 
@@ -10,5 +11,6 @@ const router = Router();
 
 router.post('/create-checkout-session', authenticate, requireCustomer, createCheckoutSession);
 router.get('/transactions', authenticate, requireAdmin, getAllTransactionsAdmin);
+router.post('/webhook', handleStripeWebhook);
 
 export default router;

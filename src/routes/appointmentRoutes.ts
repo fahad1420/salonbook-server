@@ -8,6 +8,7 @@ import {
   updateAppointmentStatusAdmin,
   getAdminDashboardStats,
   getBookedSlots,
+  getAppointmentById,
 } from '../controllers/appointmentController';
 import { authenticate } from '../middleware/auth';
 import { requireAdmin, requireCustomer } from '../middleware/role';
@@ -21,6 +22,7 @@ router.get('/booked-slots', getBookedSlots);
 router.post('/', authenticate, requireCustomer, createBooking);
 router.get('/my', authenticate, requireCustomer, getCustomerAppointments);
 router.get('/my/stats', authenticate, requireCustomer, getCustomerDashboardStats);
+router.get('/:id', authenticate, getAppointmentById);
 router.patch('/:id/cancel', authenticate, requireCustomer, cancelCustomerAppointment);
 
 // Admin endpoints

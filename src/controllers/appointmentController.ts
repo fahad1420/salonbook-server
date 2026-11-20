@@ -33,7 +33,9 @@ export async function createBooking(
     }
 
     await connectDB();
-    const { serviceId, appointmentDate, timeSlot, message } = req.body;
+    const { serviceId, message } = req.body;
+    const appointmentDate = req.body.appointmentDate || req.body.serviceDate;
+    const timeSlot = req.body.timeSlot;
 
     if (!serviceId) {
       res.status(400).json({ success: false, message: 'Service ID is required' });
@@ -420,4 +422,50 @@ export async function getBookedSlots(req: Request, res: Response): Promise<void>
     res.status(500).json({ success: false, message: 'Failed to fetch booked slots' });
   }
 }
+
+export async function getAppointmentById(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' });
+      return;
+    }
+
+    await connectDB();
+    const { id } = req.params;
+
+    const appointment = await Appointment.findById(id)
+      .populate('serviceId', 'serviceName category price duration image')
+      .populate('customerId', 'name email phone avatar');
+
+    if (!appointment) {
+      res.status(404).json({ success: false, message: 'Appointment not found' });
+      return;
+    }
+
+    // Role check: customer can only view their own appointment
+    const customerObjId = (appointment.customerId as any)?._id || appointment.customerId;
+    if (
+      req.user.role === 'customer' &&
+      customerObjId.toString() !== req.user._id.toString()
+    ) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied. You do not have permission to view this reservation.',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: appointment,
+    });
+  } catch (error) {
+    console.error('Get appointment by ID error:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve reservation' });
+  }
+}
+
 

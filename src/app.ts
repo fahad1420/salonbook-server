@@ -9,6 +9,9 @@ import appointmentRoutes from './routes/appointmentRoutes';
 import userRoutes from './routes/userRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import webhookRoutes from './routes/webhookRoutes';
+import { authenticate } from './middleware/auth';
+import { requireAdmin } from './middleware/role';
+import { getAllTransactionsAdmin } from './controllers/paymentController';
 
 const app: Application = express();
 
@@ -36,7 +39,7 @@ app.use(
 
 // 1. Mount raw body listener for Stripe Webhook before express.json() parser
 app.use(
-  '/api/webhooks/stripe',
+  ['/api/webhooks/stripe', '/api/payments/webhook'],
   express.raw({ type: 'application/json' })
 );
 app.use('/api/webhooks', webhookRoutes);
@@ -67,6 +70,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
+app.get('/api/transactions', authenticate, requireAdmin, getAllTransactionsAdmin);
 
 // Global 404 handler for unmatched routes
 app.use((_req: Request, res: Response) => {

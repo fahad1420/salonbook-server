@@ -51067,7 +51067,9 @@ async function authenticate(req, res, next) {
 var router2 = Router();
 var jsonParser = express.json({ limit: "5mb" });
 router2.post("/sign-up", jsonParser, signUp);
+router2.post("/register", jsonParser, signUp);
 router2.post("/sign-in", jsonParser, signIn);
+router2.post("/login", jsonParser, signIn);
 router2.post("/google-token", jsonParser, googleTokenAuth);
 router2.get("/me", authenticate, getMe);
 router2.put("/profile", jsonParser, authenticate, updateProfile);
@@ -51144,7 +51146,7 @@ var upload = multer({
 
 // src/routes/uploadRoutes.ts
 var router3 = Router2();
-router3.post("/", upload.single("image"), handleImageUpload);
+router3.post("/", authenticate, upload.single("image"), handleImageUpload);
 var uploadRoutes_default = router3;
 
 // src/routes/serviceRoutes.ts
@@ -51641,7 +51643,9 @@ async function createBooking(req, res) {
       return;
     }
     await connectDB();
-    const { serviceId, appointmentDate, timeSlot, message: message2 } = req.body;
+    const { serviceId, message: message2 } = req.body;
+    const appointmentDate = req.body.appointmentDate || req.body.serviceDate;
+    const timeSlot = req.body.timeSlot;
     if (!serviceId) {
       res.status(400).json({ success: false, message: "Service ID is required" });
       return;
@@ -51944,6 +51948,36 @@ async function getBookedSlots(req, res) {
     res.status(500).json({ success: false, message: "Failed to fetch booked slots" });
   }
 }
+async function getAppointmentById(req, res) {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: "Authentication required" });
+      return;
+    }
+    await connectDB();
+    const { id } = req.params;
+    const appointment = await Appointment.findById(id).populate("serviceId", "serviceName category price duration image").populate("customerId", "name email phone avatar");
+    if (!appointment) {
+      res.status(404).json({ success: false, message: "Appointment not found" });
+      return;
+    }
+    const customerObjId = appointment.customerId?._id || appointment.customerId;
+    if (req.user.role === "customer" && customerObjId.toString() !== req.user._id.toString()) {
+      res.status(403).json({
+        success: false,
+        message: "Access denied. You do not have permission to view this reservation."
+      });
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      data: appointment
+    });
+  } catch (error3) {
+    console.error("Get appointment by ID error:", error3);
+    res.status(500).json({ success: false, message: "Failed to retrieve reservation" });
+  }
+}
 
 // src/routes/appointmentRoutes.ts
 var router5 = Router4();
@@ -51951,6 +51985,7 @@ router5.get("/booked-slots", getBookedSlots);
 router5.post("/", authenticate, requireCustomer, createBooking);
 router5.get("/my", authenticate, requireCustomer, getCustomerAppointments);
 router5.get("/my/stats", authenticate, requireCustomer, getCustomerDashboardStats);
+router5.get("/:id", authenticate, getAppointmentById);
 router5.patch("/:id/cancel", authenticate, requireCustomer, cancelCustomerAppointment);
 router5.get("/admin/all", authenticate, requireAdmin, getAllAppointmentsAdmin);
 router5.get("/admin/stats", authenticate, requireAdmin, getAdminDashboardStats);
@@ -52147,15 +52182,6 @@ async function getAllTransactionsAdmin(_req, res) {
   }
 }
 
-// src/routes/paymentRoutes.ts
-var router7 = Router6();
-router7.post("/create-checkout-session", authenticate, requireCustomer, createCheckoutSession);
-router7.get("/transactions", authenticate, requireAdmin, getAllTransactionsAdmin);
-var paymentRoutes_default = router7;
-
-// src/routes/webhookRoutes.ts
-import { Router as Router7 } from "express";
-
 // src/controllers/webhookController.ts
 async function handleStripeWebhook(req, res) {
   const signature = req.headers["stripe-signature"];
@@ -52229,7 +52255,15 @@ async function handleStripeWebhook(req, res) {
   }
 }
 
+// src/routes/paymentRoutes.ts
+var router7 = Router6();
+router7.post("/create-checkout-session", authenticate, requireCustomer, createCheckoutSession);
+router7.get("/transactions", authenticate, requireAdmin, getAllTransactionsAdmin);
+router7.post("/webhook", handleStripeWebhook);
+var paymentRoutes_default = router7;
+
 // src/routes/webhookRoutes.ts
+import { Router as Router7 } from "express";
 var router8 = Router7();
 router8.post("/stripe", handleStripeWebhook);
 var webhookRoutes_default = router8;
@@ -52257,7 +52291,7 @@ app.use(
   })
 );
 app.use(
-  "/api/webhooks/stripe",
+  ["/api/webhooks/stripe", "/api/payments/webhook"],
   express2.raw({ type: "application/json" })
 );
 app.use("/api/webhooks", webhookRoutes_default);
@@ -52279,6 +52313,7 @@ app.use("/api/services", serviceRoutes_default);
 app.use("/api/appointments", appointmentRoutes_default);
 app.use("/api/users", userRoutes_default);
 app.use("/api/payments", paymentRoutes_default);
+app.get("/api/transactions", authenticate, requireAdmin, getAllTransactionsAdmin);
 app.use((_req, res) => {
   res.status(404).json({
     success: false,
