@@ -52,9 +52,7 @@ app.use('/api/auth', authRoutes);
 app.all('/api/auth/*', async (req: Request, res: Response, next) => {
   try {
     await connectDB();
-    if (!mongoClient.topology || !mongoClient.topology.isConnected()) {
-      await mongoClient.connect().catch(() => {});
-    }
+    await mongoClient.connect().catch(() => {});
     return toNodeHandler(auth)(req, res);
   } catch (err) {
     next(err);
