@@ -2,10 +2,23 @@ import { Request, Response } from 'express';
 import { Service, SERVICE_CATEGORIES, ServiceCategory } from '../models/Service';
 import { connectDB } from '../config/db';
 
+const BROKEN_404_IMAGE = 'photo-1512290900672-1f416d860d5b';
+const VERIFIED_FACIAL_IMAGE =
+  'https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?auto=format&fit=crop&w=1200&q=80';
+
+// Auto-heal legacy or invalid image URLs on the fly and persist fix
+function sanitizeServiceImage(service: any) {
+  if (service && service.image && service.image.includes(BROKEN_404_IMAGE)) {
+    service.image = VERIFIED_FACIAL_IMAGE;
+    Service.updateOne({ _id: service._id }, { image: VERIFIED_FACIAL_IMAGE }).exec().catch(() => {});
+  }
+  return service;
+}
+
 export async function getActiveServices(req: Request, res: Response): Promise<void> {
   try {
     await connectDB();
-    const { search, category, sort, limit } = req.query;
+    const { search, category, sort, limit, page } = req.query;
 
     const query: Record<string, unknown> = {
       status: 'active',
@@ -31,17 +44,27 @@ export async function getActiveServices(req: Request, res: Response): Promise<vo
       sortOption = { price: -1 };
     }
 
+    const totalCount = await Service.countDocuments(query);
+    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+    const limitNum = parseInt(limit as string, 10);
+
     let serviceQuery = Service.find(query).sort(sortOption);
 
-    if (limit && !isNaN(Number(limit))) {
-      serviceQuery = serviceQuery.limit(Number(limit));
+    if (!isNaN(limitNum) && limitNum > 0) {
+      serviceQuery = serviceQuery.skip((pageNum - 1) * limitNum).limit(limitNum);
     }
 
     const services = await serviceQuery.exec();
+    services.forEach(sanitizeServiceImage);
+
+    const totalPages = !isNaN(limitNum) && limitNum > 0 ? Math.ceil(totalCount / limitNum) : 1;
 
     res.status(200).json({
       success: true,
       count: services.length,
+      totalCount,
+      currentPage: pageNum,
+      totalPages,
       data: services,
     });
   } catch (error) {
@@ -61,6 +84,8 @@ export async function getServiceById(req: Request, res: Response): Promise<void>
       return;
     }
 
+    sanitizeServiceImage(service);
+
     res.status(200).json({
       success: true,
       data: service,
@@ -75,6 +100,7 @@ export async function getAllServicesAdmin(_req: Request, res: Response): Promise
   try {
     await connectDB();
     const services = await Service.find().sort({ createdAt: -1 });
+    services.forEach(sanitizeServiceImage);
 
     res.status(200).json({
       success: true,

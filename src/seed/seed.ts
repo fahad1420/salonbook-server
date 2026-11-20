@@ -68,7 +68,7 @@ const SEED_SERVICES = [
     price: 165,
     duration: 60,
     image:
-      'https://images.unsplash.com/photo-1512290900672-1f416d860d5b?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?auto=format&fit=crop&w=1200&q=80',
     status: 'active',
   },
   {
