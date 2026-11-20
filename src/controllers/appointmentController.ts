@@ -1,4 +1,3 @@
-
 import { Request, Response } from 'express';
 import { Appointment, SALON_TIME_SLOTS, SalonTimeSlot } from '../models/Appointment';
 import { Service } from '../models/Service';

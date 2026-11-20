@@ -2,7 +2,7 @@ export async function uploadToImgBB(
   fileBuffer: Buffer,
   fileName?: string
 ): Promise<string> {
-  const apiKey = process.env.IMGBB_API_KEY;
+  const apiKey = process.env.IMGBB_API_KEY?.replace(/['"\s]/g, '').trim();
   if (!apiKey) {
     throw new Error('IMGBB_API_KEY environment variable is not configured');
   }
