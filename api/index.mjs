@@ -51085,7 +51085,7 @@ async function uploadToImgBB(fileBuffer, fileName = "salon-service.jpg") {
     throw new Error("IMGBB_API_KEY environment variable is not configured");
   }
   const formData = new FormData();
-  const blob = new Blob([fileBuffer]);
+  const blob = new Blob([new Uint8Array(fileBuffer)], { type: "image/jpeg" });
   formData.append("image", blob, fileName);
   const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
     method: "POST",
