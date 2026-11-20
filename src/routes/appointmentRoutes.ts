@@ -7,11 +7,15 @@ import {
   getAllAppointmentsAdmin,
   updateAppointmentStatusAdmin,
   getAdminDashboardStats,
+  getBookedSlots,
 } from '../controllers/appointmentController';
 import { authenticate } from '../middleware/auth';
 import { requireAdmin, requireCustomer } from '../middleware/role';
 
 const router = Router();
+
+// Public availability endpoint
+router.get('/booked-slots', getBookedSlots);
 
 // Customer endpoints
 router.post('/', authenticate, requireCustomer, createBooking);

@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { Appointment, SALON_TIME_SLOTS, SalonTimeSlot } from '../models/Appointment';
 import { Service } from '../models/Service';
 import { User } from '../models/User';
@@ -358,3 +358,35 @@ export async function getAdminDashboardStats(
     res.status(500).json({ success: false, message: 'Failed to retrieve metrics' });
   }
 }
+
+export async function getBookedSlots(req: Request, res: Response): Promise<void> {
+  try {
+    await connectDB();
+    const { serviceId, date } = req.query;
+
+    if (!serviceId || !date) {
+      res.status(400).json({
+        success: false,
+        message: 'serviceId and date query parameters are required',
+      });
+      return;
+    }
+
+    const activeBookings = await Appointment.find({
+      serviceId,
+      appointmentDate: String(date),
+      status: { $in: ['pending', 'confirmed'] },
+    }).select('timeSlot');
+
+    const bookedSlots = activeBookings.map((b) => b.timeSlot);
+
+    res.status(200).json({
+      success: true,
+      bookedSlots,
+    });
+  } catch (error) {
+    console.error('Booked slots error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch booked slots' });
+  }
+}
+
