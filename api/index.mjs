@@ -50625,7 +50625,7 @@ try {
   dns.setServers(["8.8.8.8", "1.1.1.1"]);
 } catch {
 }
-var mongoUri = process.env.MONGODB_URI || "mongodb+srv://fahadhossain04_db_user:taY4IFn2PrqN6Kak@cluster0.ulcxjyj.mongodb.net/salonbook?retryWrites=true&w=majority";
+var mongoUri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/salonbook";
 var mongoClient = new MongoClient(mongoUri);
 var db = mongoClient.db();
 var clientUrl = process.env.CLIENT_URL || "http://localhost:3000";

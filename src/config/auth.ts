@@ -13,7 +13,7 @@ import bcrypt from 'bcryptjs';
 
 const mongoUri =
   process.env.MONGODB_URI ||
-  'mongodb+srv://fahadhossain04_db_user:taY4IFn2PrqN6Kak@cluster0.ulcxjyj.mongodb.net/salonbook?retryWrites=true&w=majority';
+  'mongodb://127.0.0.1:27017/salonbook';
 
 export const mongoClient = new MongoClient(mongoUri);
 const db = mongoClient.db();
