@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { fromNodeHeaders } from 'better-auth/node';
+import { fromNodeHeaders } from '../utils/esm';
 import { auth } from '../config/auth';
 import { User } from '../models/User';
 import { AuthenticatedRequest } from '../middleware/auth';

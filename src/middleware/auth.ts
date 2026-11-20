@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { fromNodeHeaders } from 'better-auth/node';
+import { fromNodeHeaders } from '../utils/esm';
 import { auth } from '../config/auth';
 
 export interface AuthenticatedRequest extends Request {
