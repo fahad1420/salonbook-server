@@ -1,11 +1,19 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['api/index.ts'],
+  entry: {
+    index: 'src/entry.ts',
+  },
   format: ['esm'],
   target: 'node20',
   clean: false,
-  outDir: 'api_dist',
+  outDir: 'api',
+  outExtension() {
+    return {
+      js: '.mjs',
+    };
+  },
+  splitting: false,
   bundle: true,
   noExternal: ['better-auth', '@better-auth/mongo-adapter', 'better-call'],
   external: [
