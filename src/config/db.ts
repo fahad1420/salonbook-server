@@ -1,10 +1,3 @@
-import dns from 'node:dns';
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch {
-  // Ignore in environments where setting servers is restricted
-}
-
 import mongoose from 'mongoose';
 
 interface MongooseCache {
@@ -37,7 +30,7 @@ export async function connectDB(): Promise<typeof mongoose> {
     const opts = {
       bufferCommands: false,
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 15000,
     };
 
     cached!.promise = mongoose.connect(uri, opts).then((m) => {

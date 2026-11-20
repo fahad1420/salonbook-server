@@ -1,10 +1,3 @@
-import dns from 'node:dns';
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch {
-  // Ignored in environments where DNS servers cannot be overridden
-}
-
 import { MongoClient } from 'mongodb';
 import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from '@better-auth/mongo-adapter';
@@ -17,7 +10,7 @@ const mongoUri =
 
 export const mongoClient = new MongoClient(mongoUri, {
   maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 15000,
 });
 
 mongoClient.connect().catch((err) => {

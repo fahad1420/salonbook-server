@@ -31346,7 +31346,6 @@ function fromNodeHeaders(nodeHeaders) {
 }
 
 // src/config/auth.ts
-import dns from "dns";
 import { MongoClient } from "mongodb";
 
 // node_modules/better-auth/dist/utils/wildcard.mjs
@@ -50621,14 +50620,10 @@ var bearer = (options) => {
 
 // src/config/auth.ts
 import bcrypt from "bcryptjs";
-try {
-  dns.setServers(["8.8.8.8", "1.1.1.1"]);
-} catch {
-}
 var mongoUri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/salonbook";
 var mongoClient = new MongoClient(mongoUri, {
   maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5e3
+  serverSelectionTimeoutMS: 15e3
 });
 mongoClient.connect().catch((err) => {
   console.error("Initial mongoClient connect error:", err);
@@ -50722,12 +50717,7 @@ var auth = betterAuth({
 });
 
 // src/config/db.ts
-import dns2 from "dns";
 import mongoose from "mongoose";
-try {
-  dns2.setServers(["8.8.8.8", "1.1.1.1"]);
-} catch {
-}
 var cached2 = global.mongooseCache;
 if (!cached2) {
   cached2 = global.mongooseCache = { conn: null, promise: null };
@@ -50744,7 +50734,7 @@ async function connectDB() {
     const opts = {
       bufferCommands: false,
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5e3
+      serverSelectionTimeoutMS: 15e3
     };
     cached2.promise = mongoose.connect(uri, opts).then((m) => {
       console.log("MongoDB successfully connected");
