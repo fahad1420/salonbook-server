@@ -15,7 +15,15 @@ const mongoUri =
   process.env.MONGODB_URI ||
   'mongodb://127.0.0.1:27017/salonbook';
 
-export const mongoClient = new MongoClient(mongoUri);
+export const mongoClient = new MongoClient(mongoUri, {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5000,
+});
+
+mongoClient.connect().catch((err) => {
+  console.error('Initial mongoClient connect error:', err);
+});
+
 const db = mongoClient.db();
 
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';

@@ -1,7 +1,8 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import { toNodeHandler } from 'better-auth/node';
-import { auth } from './config/auth';
+import { auth, mongoClient } from './config/auth';
+import { connectDB } from './config/db';
 import authRoutes from './routes/authRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import serviceRoutes from './routes/serviceRoutes';
@@ -48,7 +49,17 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/auth', authRoutes);
 
 // 3. Official Better Auth catch-all for /api/auth/sign-in/email, /api/auth/callback/google, etc.
-app.all('/api/auth/*', toNodeHandler(auth));
+app.all('/api/auth/*', async (req: Request, res: Response, next) => {
+  try {
+    await connectDB();
+    if (!mongoClient.topology || !mongoClient.topology.isConnected()) {
+      await mongoClient.connect().catch(() => {});
+    }
+    return toNodeHandler(auth)(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // 4. JSON body parser for all other REST endpoints
 app.use(express.json({ limit: '10mb' }));

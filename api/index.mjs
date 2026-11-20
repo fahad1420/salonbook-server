@@ -50626,7 +50626,13 @@ try {
 } catch {
 }
 var mongoUri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/salonbook";
-var mongoClient = new MongoClient(mongoUri);
+var mongoClient = new MongoClient(mongoUri, {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5e3
+});
+mongoClient.connect().catch((err) => {
+  console.error("Initial mongoClient connect error:", err);
+});
 var db = mongoClient.db();
 var clientUrl = process.env.CLIENT_URL || "http://localhost:3000";
 var serverUrl = process.env.BETTER_AUTH_URL || (process.env.NODE_ENV === "production" ? "https://salonbook-api.vercel.app" : "http://localhost:5000");
@@ -50704,11 +50710,50 @@ var auth = betterAuth({
   ].filter(Boolean)
 });
 
+// src/config/db.ts
+import dns2 from "dns";
+import mongoose from "mongoose";
+try {
+  dns2.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch {
+}
+var cached2 = global.mongooseCache;
+if (!cached2) {
+  cached2 = global.mongooseCache = { conn: null, promise: null };
+}
+async function connectDB() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error("MONGODB_URI environment variable is missing");
+  }
+  if (cached2.conn) {
+    return cached2.conn;
+  }
+  if (!cached2.promise) {
+    const opts = {
+      bufferCommands: false,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5e3
+    };
+    cached2.promise = mongoose.connect(uri, opts).then((m) => {
+      console.log("MongoDB successfully connected");
+      return m;
+    });
+  }
+  try {
+    cached2.conn = await cached2.promise;
+  } catch (err) {
+    cached2.promise = null;
+    throw err;
+  }
+  return cached2.conn;
+}
+
 // src/routes/authRoutes.ts
 import express, { Router } from "express";
 
 // src/models/User.ts
-import mongoose, { Schema } from "mongoose";
+import mongoose2, { Schema } from "mongoose";
 var UserSchema = new Schema(
   {
     name: {
@@ -50757,46 +50802,7 @@ var UserSchema = new Schema(
     versionKey: false
   }
 );
-var User = mongoose.models.User || mongoose.model("User", UserSchema);
-
-// src/config/db.ts
-import dns2 from "dns";
-import mongoose2 from "mongoose";
-try {
-  dns2.setServers(["8.8.8.8", "1.1.1.1"]);
-} catch {
-}
-var cached2 = global.mongooseCache;
-if (!cached2) {
-  cached2 = global.mongooseCache = { conn: null, promise: null };
-}
-async function connectDB() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error("MONGODB_URI environment variable is missing");
-  }
-  if (cached2.conn) {
-    return cached2.conn;
-  }
-  if (!cached2.promise) {
-    const opts = {
-      bufferCommands: false,
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5e3
-    };
-    cached2.promise = mongoose2.connect(uri, opts).then((m) => {
-      console.log("MongoDB successfully connected");
-      return m;
-    });
-  }
-  try {
-    cached2.conn = await cached2.promise;
-  } catch (err) {
-    cached2.promise = null;
-    throw err;
-  }
-  return cached2.conn;
-}
+var User = mongoose2.models.User || mongoose2.model("User", UserSchema);
 
 // src/controllers/authController.ts
 var PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z]).{6,}$/;
@@ -52290,7 +52296,18 @@ app.use(
 );
 app.use("/api/webhooks", webhookRoutes_default);
 app.use("/api/auth", authRoutes_default);
-app.all("/api/auth/*", toNodeHandler2(auth));
+app.all("/api/auth/*", async (req, res, next) => {
+  try {
+    await connectDB();
+    if (!mongoClient.topology || !mongoClient.topology.isConnected()) {
+      await mongoClient.connect().catch(() => {
+      });
+    }
+    return toNodeHandler2(auth)(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
 app.use(express2.json({ limit: "10mb" }));
 app.use(express2.urlencoded({ extended: true, limit: "10mb" }));
 app.get("/api/health", (_req, res) => {
