@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
+import { fromNodeHeaders } from 'better-auth/node';
+import { auth } from '../config/auth';
 import { User } from '../models/User';
-import { generateToken } from '../utils/token';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { connectDB } from '../config/db';
 
@@ -9,7 +9,6 @@ const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z]).{6,}$/;
 
 export async function signUp(req: Request, res: Response): Promise<void> {
   try {
-    await connectDB();
     const { name, email, password, image, phone } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -25,61 +24,54 @@ export async function signUp(req: Request, res: Response): Promise<void> {
     if (!password || typeof password !== 'string' || !PASSWORD_REGEX.test(password)) {
       res.status(400).json({
         success: false,
-        message: 'Password must be at least 6 characters and contain at least one uppercase and one lowercase letter.',
+        message:
+          'Password must be at least 6 characters and contain at least one uppercase and one lowercase letter.',
       });
       return;
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) {
-      res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+    const signUpRes = await auth.api.signUpEmail({
+      body: {
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        password,
+        image: typeof image === 'string' ? image.trim() : '',
+        phone: typeof phone === 'string' ? phone.trim() : '',
+      },
+      headers: fromNodeHeaders(req.headers),
+    });
+
+    if (!signUpRes?.user) {
+      res.status(400).json({ success: false, message: 'Failed to create user account.' });
       return;
     }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Public registration strictly assigns 'customer' role
-    const newUser = await User.create({
-      name: name.trim(),
-      email: normalizedEmail,
-      password: hashedPassword,
-      image: typeof image === 'string' ? image.trim() : '',
-      phone: typeof phone === 'string' ? phone.trim() : '',
-      role: 'customer',
-      isBlocked: false,
-    });
-
-    const token = generateToken({
-      id: newUser._id.toString(),
-      email: newUser.email,
-      role: newUser.role,
-    });
 
     res.status(201).json({
       success: true,
       message: 'Account registered successfully.',
-      token,
+      token: (signUpRes as any).token || '',
       user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        image: newUser.image,
-        phone: newUser.phone,
-        role: newUser.role,
-        isBlocked: newUser.isBlocked,
+        id: signUpRes.user.id,
+        _id: signUpRes.user.id,
+        name: signUpRes.user.name,
+        email: signUpRes.user.email,
+        image: signUpRes.user.image,
+        phone: (signUpRes.user as any).phone || '',
+        role: (signUpRes.user as any).role || 'customer',
+        isBlocked: (signUpRes.user as any).isBlocked || false,
       },
     });
-  } catch (error) {
-    console.error('Sign-up error:', error);
-    res.status(500).json({ success: false, message: 'Failed to create account.' });
+  } catch (error: any) {
+    console.error('Better Auth sign-up error:', error);
+    res.status(error.statusCode || 400).json({
+      success: false,
+      message: error.message || 'Failed to create account.',
+    });
   }
 }
 
 export async function signIn(req: Request, res: Response): Promise<void> {
   try {
-    await connectDB();
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -87,21 +79,20 @@ export async function signIn(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    const signInRes = await auth.api.signInEmail({
+      body: {
+        email: email.toLowerCase().trim(),
+        password,
+      },
+      headers: fromNodeHeaders(req.headers),
+    });
 
-    if (!user || !user.password) {
+    if (!signInRes?.user) {
       res.status(401).json({ success: false, message: 'Invalid credentials.' });
       return;
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      res.status(401).json({ success: false, message: 'Invalid credentials.' });
-      return;
-    }
-
-    if (user.isBlocked) {
+    if ((signInRes.user as any).isBlocked) {
       res.status(403).json({
         success: false,
         message: 'Your account has been suspended by salon administration.',
@@ -109,112 +100,112 @@ export async function signIn(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const token = generateToken({
-      id: user._id.toString(),
-      email: user.email,
-      role: user.role,
-    });
-
     res.status(200).json({
       success: true,
       message: 'Signed in successfully.',
-      token,
+      token: (signInRes as any).token || '',
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        phone: user.phone,
-        role: user.role,
-        isBlocked: user.isBlocked,
+        id: signInRes.user.id,
+        _id: signInRes.user.id,
+        name: signInRes.user.name,
+        email: signInRes.user.email,
+        image: signInRes.user.image,
+        phone: (signInRes.user as any).phone || '',
+        role: (signInRes.user as any).role || 'customer',
+        isBlocked: (signInRes.user as any).isBlocked || false,
       },
     });
-  } catch (error) {
-    console.error('Sign-in error:', error);
-    res.status(500).json({ success: false, message: 'Authentication failed.' });
+  } catch (error: any) {
+    console.error('Better Auth sign-in error:', error);
+    const status = error.statusCode || 401;
+    res.status(status).json({
+      success: false,
+      message: error.message || 'Invalid email or password.',
+    });
   }
 }
 
-export async function googleAuth(req: Request, res: Response): Promise<void> {
+export async function googleTokenAuth(req: Request, res: Response): Promise<void> {
   try {
-    await connectDB();
-    const { name, email, image } = req.body;
-
-    if (!email || !name) {
-      res.status(400).json({ success: false, message: 'Google profile payload is missing email or name.' });
+    const { idToken } = req.body;
+    if (!idToken) {
+      res.status(400).json({ success: false, message: 'Google ID token is required.' });
       return;
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    let user = await User.findOne({ email: normalizedEmail });
+    const signInRes = await auth.api.signInSocial({
+      body: {
+        provider: 'google',
+        idToken: {
+          token: idToken,
+        },
+      },
+      headers: fromNodeHeaders(req.headers),
+    });
 
-    if (user) {
-      if (user.isBlocked) {
-        res.status(403).json({
-          success: false,
-          message: 'Your account has been suspended by salon administration.',
-        });
-        return;
-      }
-      if (image && !user.image) {
-        user.image = image;
-        await user.save();
-      }
-    } else {
-      user = await User.create({
-        name: name.trim(),
-        email: normalizedEmail,
-        image: image || '',
-        role: 'customer',
-        isBlocked: false,
-      });
+    if (!('user' in signInRes) || !signInRes.user) {
+      res.status(401).json({ success: false, message: 'Google authentication failed.' });
+      return;
     }
 
-    const token = generateToken({
-      id: user._id.toString(),
-      email: user.email,
-      role: user.role,
-    });
+    const authUser = signInRes.user;
+
+    if ((authUser as any).isBlocked) {
+      res.status(403).json({
+        success: false,
+        message: 'Your account has been suspended by salon administration.',
+      });
+      return;
+    }
 
     res.status(200).json({
       success: true,
-      message: 'Authenticated with Google.',
-      token,
+      message: 'Google authentication successful.',
+      token: (signInRes as any).token || '',
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        phone: user.phone,
-        role: user.role,
-        isBlocked: user.isBlocked,
+        id: authUser.id,
+        _id: authUser.id,
+        name: authUser.name,
+        email: authUser.email,
+        image: authUser.image,
+        phone: (authUser as any).phone || '',
+        role: (authUser as any).role || 'customer',
+        isBlocked: (authUser as any).isBlocked || false,
       },
     });
-  } catch (error) {
-    console.error('Google auth error:', error);
-    res.status(500).json({ success: false, message: 'Google authentication failed.' });
+  } catch (error: any) {
+    console.error('Google token auth error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Google authentication failed.',
+    });
   }
 }
 
 export async function getMe(req: AuthenticatedRequest, res: Response): Promise<void> {
-  if (!req.user) {
-    res.status(401).json({ success: false, message: 'Authentication required' });
-    return;
-  }
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'User not authenticated' });
+      return;
+    }
 
-  res.status(200).json({
-    success: true,
-    user: {
-      id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      image: req.user.image,
-      phone: req.user.phone,
-      role: req.user.role,
-      isBlocked: req.user.isBlocked,
-      createdAt: req.user.createdAt,
-    },
-  });
+    res.status(200).json({
+      success: true,
+      user: {
+        id: req.user._id || req.user.id,
+        _id: req.user._id || req.user.id,
+        name: req.user.name,
+        email: req.user.email,
+        image: req.user.image || '',
+        phone: req.user.phone || '',
+        role: req.user.role || 'customer',
+        isBlocked: req.user.isBlocked || false,
+      },
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve profile' });
+  }
 }
 
 export async function updateProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -225,31 +216,36 @@ export async function updateProfile(req: AuthenticatedRequest, res: Response): P
     }
 
     await connectDB();
-    const { name, image, phone } = req.body;
-    const user = await User.findById(req.user._id);
+    const { name, phone, image } = req.body;
+    const userId = req.user._id || req.user.id;
 
-    if (!user) {
-      res.status(404).json({ success: false, message: 'User not found' });
+    const updated = await User.findByIdAndUpdate(
+      userId,
+      {
+        ...(typeof name === 'string' && name.trim() ? { name: name.trim() } : {}),
+        ...(typeof phone === 'string' ? { phone: phone.trim() } : {}),
+        ...(typeof image === 'string' ? { image: image.trim() } : {}),
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      res.status(404).json({ success: false, message: 'User account not found' });
       return;
     }
-
-    if (name && typeof name === 'string') user.name = name.trim();
-    if (image !== undefined && typeof image === 'string') user.image = image.trim();
-    if (phone !== undefined && typeof phone === 'string') user.phone = phone.trim();
-
-    await user.save();
 
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        phone: user.phone,
-        role: user.role,
-        isBlocked: user.isBlocked,
+        id: updated._id,
+        _id: updated._id,
+        name: updated.name,
+        email: updated.email,
+        image: updated.image,
+        phone: updated.phone,
+        role: updated.role,
+        isBlocked: updated.isBlocked,
       },
     });
   } catch (error) {

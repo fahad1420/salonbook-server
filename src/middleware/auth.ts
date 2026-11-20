@@ -1,11 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken, TokenPayload } from '../utils/token';
-import { User, IUser } from '../models/User';
-import { connectDB } from '../config/db';
+import { fromNodeHeaders } from 'better-auth/node';
+import { auth } from '../config/auth';
 
 export interface AuthenticatedRequest extends Request {
-  user?: IUser;
-  tokenPayload?: TokenPayload;
+  user?: any;
+  tokenPayload?: any;
 }
 
 export async function authenticate(
@@ -14,37 +13,20 @@ export async function authenticate(
   next: NextFunction
 ): Promise<void> {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const headers = fromNodeHeaders(req.headers);
+    const session = await auth.api.getSession({
+      headers,
+    });
+
+    if (!session || !session.user) {
       res.status(401).json({
         success: false,
-        message: 'Authentication required. No bearer token provided.',
+        message: 'Authentication required. Active session not found.',
       });
       return;
     }
 
-    const token = authHeader.split(' ')[1];
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      res.status(401).json({
-        success: false,
-        message: 'Invalid or expired session token.',
-      });
-      return;
-    }
-
-    await connectDB();
-    const user = await User.findById(decoded.id);
-
-    if (!user) {
-      res.status(401).json({
-        success: false,
-        message: 'User account no longer exists.',
-      });
-      return;
-    }
-
-    if (user.isBlocked) {
+    if ((session.user as any).isBlocked) {
       res.status(403).json({
         success: false,
         message: 'Your account has been suspended by salon administration.',
@@ -52,14 +34,26 @@ export async function authenticate(
       return;
     }
 
-    req.user = user;
-    req.tokenPayload = decoded;
+    const userId = session.user.id || (session.user as any)._id;
+
+    req.user = {
+      ...session.user,
+      _id: userId,
+      id: userId,
+    };
+
+    req.tokenPayload = {
+      id: userId,
+      email: session.user.email,
+      role: (session.user as any).role || 'customer',
+    };
+
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error('Better Auth session verification error:', error);
     res.status(500).json({
       success: false,
-      message: 'Authentication service failed',
+      message: 'Internal authentication verification error.',
     });
   }
 }
