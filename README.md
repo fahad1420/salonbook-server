@@ -30,6 +30,15 @@ Production-ready backend API service for **SalonBook**, a luxury salon and spa a
 
 ---
 
+## Evaluation Demo Credentials
+| Role | Email | Password | Primary Feature Access |
+|---|---|---|---|
+| **Administrator** | `admin@salonbook.com` | `Password123!` | Executive KPIs, Service CRUD, ImgBB Uploads, Appointment Confirmation/Cancellation, Customer Suspension (`isBlocked`), Financial Ledger |
+| **Customer** | `vivienne@example.com` | `Password123!` | Treatment Discovery, Predefined Slot Reservations, Real-Time Conflict Checks, Stripe Checkout, PDF Receipt Download |
+| **Google Account** | Any Google Account | Google OAuth | One-click instant OAuth sign-in to customer portal |
+
+---
+
 ## Environment Variables (`.env`)
 ```bash
 NODE_ENV=production
