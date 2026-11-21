@@ -50664,14 +50664,14 @@ var auth = betterAuth({
   },
   account: {
     modelName: "accounts",
+    storeStateStrategy: "database",
     skipStateCookieCheck: true
   },
   advanced: {
     useSecureCookies: true,
     defaultCookieAttributes: {
       sameSite: "none",
-      secure: true,
-      partitioned: true
+      secure: true
     }
   },
   verification: {
@@ -52297,6 +52297,63 @@ app.use(
 );
 app.use("/api/webhooks", webhookRoutes_default);
 app.use("/api/auth", authRoutes_default);
+app.all("/api/auth/callback/:provider", async (req, res, next) => {
+  try {
+    await connectDB();
+    await mongoClient.connect().catch(() => {
+    });
+    const originalSetHeader = res.setHeader.bind(res);
+    const originalWriteHead = res.writeHead.bind(res);
+    let capturedLocation = null;
+    const capturedCookies = [];
+    res.setHeader = function(name, value) {
+      if (name.toLowerCase() === "location" && typeof value === "string") {
+        capturedLocation = value;
+      }
+      if (name.toLowerCase() === "set-cookie") {
+        if (Array.isArray(value)) {
+          capturedCookies.push(...value);
+        } else if (typeof value === "string") {
+          capturedCookies.push(value);
+        }
+      }
+      return originalSetHeader(name, value);
+    };
+    res.writeHead = function(statusCode, ...args) {
+      let location = capturedLocation || res.getHeader("location");
+      if (location && (statusCode === 302 || statusCode === 301 || statusCode === 303 || statusCode === 307)) {
+        const allCookies = [
+          ...capturedCookies,
+          ...res.getHeader("set-cookie") ? [].concat(res.getHeader("set-cookie")) : []
+        ];
+        let sessionToken = null;
+        for (const cookieStr of allCookies) {
+          const match = cookieStr.match(/(?:__Secure-)?better-auth\.session_token=([^;]+)/);
+          if (match && match[1]) {
+            sessionToken = match[1];
+            break;
+          }
+        }
+        if (sessionToken && location.startsWith("http")) {
+          try {
+            const redirectUrl = new URL(location);
+            if (redirectUrl.hostname.endsWith("vercel.app") || redirectUrl.hostname === "localhost" || redirectUrl.hostname === "127.0.0.1") {
+              redirectUrl.searchParams.set("token", sessionToken);
+              location = redirectUrl.toString();
+              originalSetHeader("location", location);
+            }
+          } catch (e) {
+            console.error("Error modifying OAuth redirect URL:", e);
+          }
+        }
+      }
+      return originalWriteHead(statusCode, ...args);
+    };
+    return toNodeHandler2(auth)(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
 app.all("/api/auth/*", async (req, res, next) => {
   try {
     await connectDB();
@@ -52310,14 +52367,7 @@ app.all("/api/auth/*", async (req, res, next) => {
 app.use(express2.json({ limit: "10mb" }));
 app.use(express2.urlencoded({ extended: true, limit: "10mb" }));
 var clientUrl2 = process.env.CLIENT_URL || (process.env.NODE_ENV === "production" ? "https://salonbook-booking.vercel.app" : "http://localhost:3000");
-app.get("/", (req, res) => {
-  const error3 = req.query.error;
-  if (error3) {
-    return res.redirect(`${clientUrl2}/sign-in?error=${encodeURIComponent(String(error3))}`);
-  }
-  return res.redirect(clientUrl2);
-});
-app.get("/error", (req, res) => {
+app.get(["/", "/error"], (req, res) => {
   const error3 = req.query.error;
   if (error3) {
     return res.redirect(`${clientUrl2}/sign-in?error=${encodeURIComponent(String(error3))}`);

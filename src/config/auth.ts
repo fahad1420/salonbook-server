@@ -67,6 +67,7 @@ export const auth = betterAuth({
   },
   account: {
     modelName: 'accounts',
+    storeStateStrategy: 'database',
     skipStateCookieCheck: true,
   },
   advanced: {
@@ -74,7 +75,6 @@ export const auth = betterAuth({
     defaultCookieAttributes: {
       sameSite: 'none',
       secure: true,
-      partitioned: true,
     },
   },
   verification: {

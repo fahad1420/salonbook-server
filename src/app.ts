@@ -48,7 +48,75 @@ app.use('/api/webhooks', webhookRoutes);
 // 2. Compatibility & Profile Auth Routes (specific sub-routes)
 app.use('/api/auth', authRoutes);
 
-// 3. Official Better Auth catch-all for /api/auth/sign-in/email, /api/auth/callback/google, etc.
+// 3. OAuth Callback handler with seamless token propagation for cross-origin reliability
+app.all('/api/auth/callback/:provider', async (req: Request, res: Response, next) => {
+  try {
+    await connectDB();
+    await mongoClient.connect().catch(() => {});
+
+    const originalSetHeader = res.setHeader.bind(res);
+    const originalWriteHead = res.writeHead.bind(res);
+    let capturedLocation: string | null = null;
+    const capturedCookies: string[] = [];
+
+    res.setHeader = function (name: string, value: any) {
+      if (name.toLowerCase() === 'location' && typeof value === 'string') {
+        capturedLocation = value;
+      }
+      if (name.toLowerCase() === 'set-cookie') {
+        if (Array.isArray(value)) {
+          capturedCookies.push(...value);
+        } else if (typeof value === 'string') {
+          capturedCookies.push(value);
+        }
+      }
+      return originalSetHeader(name, value);
+    };
+
+    res.writeHead = function (statusCode: number, ...args: any[]) {
+      let location = capturedLocation || (res.getHeader('location') as string | undefined);
+      if (location && (statusCode === 302 || statusCode === 301 || statusCode === 303 || statusCode === 307)) {
+        const allCookies = [
+          ...capturedCookies,
+          ...((res.getHeader('set-cookie') as string[] | string) ? [].concat(res.getHeader('set-cookie') as any) : []),
+        ];
+
+        let sessionToken: string | null = null;
+        for (const cookieStr of allCookies) {
+          const match = cookieStr.match(/(?:__Secure-)?better-auth\.session_token=([^;]+)/);
+          if (match && match[1]) {
+            sessionToken = match[1];
+            break;
+          }
+        }
+
+        if (sessionToken && location.startsWith('http')) {
+          try {
+            const redirectUrl = new URL(location);
+            if (
+              redirectUrl.hostname.endsWith('vercel.app') ||
+              redirectUrl.hostname === 'localhost' ||
+              redirectUrl.hostname === '127.0.0.1'
+            ) {
+              redirectUrl.searchParams.set('token', sessionToken);
+              location = redirectUrl.toString();
+              originalSetHeader('location', location);
+            }
+          } catch (e) {
+            console.error('Error modifying OAuth redirect URL:', e);
+          }
+        }
+      }
+      return (originalWriteHead as any)(statusCode, ...args);
+    };
+
+    return toNodeHandler(auth)(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 4. Official Better Auth catch-all for /api/auth/sign-in/email, /api/auth/get-session, etc.
 app.all('/api/auth/*', async (req: Request, res: Response, next) => {
   try {
     await connectDB();
@@ -59,7 +127,7 @@ app.all('/api/auth/*', async (req: Request, res: Response, next) => {
   }
 });
 
-// 4. JSON body parser for all other REST endpoints
+// 5. JSON body parser for all other REST endpoints
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -69,15 +137,7 @@ const clientUrl =
     ? 'https://salonbook-booking.vercel.app'
     : 'http://localhost:3000');
 
-app.get('/', (req: Request, res: Response) => {
-  const error = req.query.error;
-  if (error) {
-    return res.redirect(`${clientUrl}/sign-in?error=${encodeURIComponent(String(error))}`);
-  }
-  return res.redirect(clientUrl);
-});
-
-app.get('/error', (req: Request, res: Response) => {
+app.get(['/', '/error'], (req: Request, res: Response) => {
   const error = req.query.error;
   if (error) {
     return res.redirect(`${clientUrl}/sign-in?error=${encodeURIComponent(String(error))}`);
