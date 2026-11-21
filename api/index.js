@@ -52130,7 +52130,7 @@ async function createCheckoutSession(req, res) {
         customerId: req.user._id.toString(),
         serviceId: service._id.toString()
       },
-      success_url: `${clientUrl3}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${clientUrl3}/payment/success?session_id={CHECKOUT_SESSION_ID}&appointment_id=${appointment._id.toString()}`,
       cancel_url: `${clientUrl3}/payment/cancel?appointment_id=${appointment._id.toString()}`
     });
     res.status(200).json({

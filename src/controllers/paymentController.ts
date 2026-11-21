@@ -86,7 +86,7 @@ export async function createCheckoutSession(
         customerId: req.user._id.toString(),
         serviceId: service._id.toString(),
       },
-      success_url: `${clientUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${clientUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}&appointment_id=${appointment._id.toString()}`,
       cancel_url: `${clientUrl}/payment/cancel?appointment_id=${appointment._id.toString()}`,
     });
 
