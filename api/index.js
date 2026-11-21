@@ -30910,7 +30910,7 @@ var init_kysely_adapter = __esm({
 // src/entry.ts
 import dotenv from "dotenv";
 
-// src/app.ts
+// src/serverApp.ts
 import express2 from "express";
 import cors from "cors";
 
@@ -52269,7 +52269,7 @@ var router8 = Router7();
 router8.post("/stripe", handleStripeWebhook);
 var webhookRoutes_default = router8;
 
-// src/app.ts
+// src/serverApp.ts
 var app = express2();
 var allowedOrigins = [
   "http://localhost:3000",
@@ -52395,11 +52395,11 @@ app.use((_req, res) => {
     message: "API route not found"
   });
 });
-var app_default = app;
+var serverApp_default = app;
 
 // src/entry.ts
 dotenv.config();
-var entry_default = app_default;
+var entry_default = serverApp_default;
 export {
   entry_default as default
 };
